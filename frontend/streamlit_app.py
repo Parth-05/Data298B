@@ -6,31 +6,34 @@ st.title(" Financial Q&A Assistant")
 st.markdown("Ask financial questions and get reasoning-powered answers.")
 
 # Model selector (Mistral is active, LLaMA 3 is dummy)
-model_choice = st.selectbox("Choose a model", ["Mistral", "LLaMA 3", "GPT"])
+model_choice = st.selectbox("Choose a model", ["Mistral", "LLaMA 3", "GPT", "Gemini"])
 
 # API_URL = "http://localhost:8000/query"
 
 # map model → endpoint
 ENDPOINTS = {
     "Mistral": "http://localhost:8000/query",
-    "GPT":  "http://localhost:8000/query_gpt"
+    "GPT":  "http://localhost:8000/query_gpt",
+    "Gemini":  "http://localhost:8000/query_gemini"
 }
 
 question = st.text_area(" Enter your financial or business question", height=150)
 
 if st.button("Get Answer") and question:
     API_URL = ENDPOINTS[model_choice]
+    print(f"API URL: {API_URL}")
     payload = {"query": question}
     with st.spinner("🧠 Thinking..."):
         response = requests.post(API_URL, json=payload)
         if response.status_code == 200:
             data = response.json()
+            print(data)
 
             # Show retrieved documents
-            st.subheader(" Top Retrieved Documents")
-            for idx, doc in enumerate(data.get("retrieved_documents", []), 1):
-                st.markdown(f"**Document {idx}:** {doc['document']}")
-                st.caption(f"#### 🔗 Similarity Score: {doc['similarity']:.4f}")
+            # st.subheader(" Top Retrieved Documents")
+            # for idx, doc in enumerate(data.get("retrieved_documents", []), 1):
+            #     st.markdown(f"**Document {idx}:** {doc['document']}")
+            #     st.caption(f"#### 🔗 Similarity Score: {doc['similarity']:.4f}")
 
          
             answer_data = data.get("answer")

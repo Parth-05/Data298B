@@ -6,6 +6,7 @@ import json
 import re
 from dotenv import load_dotenv
 import openai, os, json, re
+import google.generativeai as genai 
 
 load_dotenv()
 
@@ -20,6 +21,7 @@ HF_TOKEN = os.getenv("HF_TOKEN", "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")
 
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 headers = {
     "Authorization": f"Bearer {HF_TOKEN}",
@@ -160,3 +162,45 @@ x
         print("[ERROR] No JSON found.")
         print(generated)
         return {"error": "No valid JSON object detected", "final_answer": generated}
+    
+
+# ─── Gemini: markdown answer ───────────────────────────────────────────────
+def _gemini_markdown_answer(query: str, model="gemini-1.5-flash") -> str:
+    prompt = (
+        "You are a professional AI assistant specializing in finance.\n"
+        "Think step-by-step using the Reason and Act (ReAct) pattern and reply **in Markdown only**.\n\n"
+        "Use exactly this template:\n"
+        "### Question\n"
+        "<restate the question>\n\n"
+        "### Reasoning\n"
+        "1. **Thought:** …  \n"
+        "   **Act:** …  \n"
+        "   **Observe:** …  \n"
+        "   **Answer:** …\n"
+        "2. *(repeat Thought/Act/Observe/Answer as many steps as needed)*\n\n"
+        "### Final answer\n"
+        "<concise answer>"
+    )
+    model = genai.GenerativeModel(model)
+    resp  = model.generate_content(
+        [{"role": "user", "parts": [prompt + "\n\nQuestion:\n" + query]}]
+    )
+    print("Gemini response:", resp.candidates[0].content.parts[0].text.strip())
+    return resp.candidates[0].content.parts[0].text.strip()
+
+# ─── Public helper ---------------------------------------------------------
+def generate_answer_from_gemini(query: str, retrieved_docs,
+                                model="gemini-1.5-flash"):
+    md = _gemini_markdown_answer(query, model=model)
+    try:
+        # quick regex path
+        m = re.search(r"\{[\s\S]*\}", md)
+        if m:
+            return json.loads(m.group(0))
+    except Exception:
+        pass
+    # fallback to fixer (same OpenAI-based fixer)
+    try:
+        return _markdown_to_json(md)
+    except Exception:
+        return md
