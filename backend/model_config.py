@@ -29,52 +29,78 @@ headers = {
 def text_to_embedding(text):
     return embedding_model.encode([text])[0]
 
-def generate_answer_from_gpt(query, top_k_docs=None, model="gpt-4o-mini"):
-    """Return a ReAct-style JSON answer without using retrieved context."""
-    system_prompt = (
-        "You are a professional AI assistant specializing in finance. "
-        "Answer the question using Reason and Act (ReAct) and output ONLY the JSON structure below."
-    )
-
-    user_prompt = f"""
-Respond in JSON ONLY:
-{{
-  "question": "<restate the question>",
-  "reasoning_steps": [
-    {{
-      "question": "<thought process>",
-      "act": "<action taken>",
-      "observe": "<observation>",
-      "answer": "<partial answer>"
-    }}
-  ],
-  "final_answer": "<summarized answer>"
-}}
----
-Question:
-{query}
-"""
-
+# Answer in Markdown format
+def _gpt_markdown_answer(query: str, model="gpt-4o-mini") -> str:
+    # system = ("You are a professional AI assistant specialising in finance. "
+    #           "Answer the question using Reason and Act (ReAct) and answer in Markdown using:\n"
+    #           "### Reasoning\n• Thought / Act / Observe lines\n"
+    #           "### Final answer\n")
+    system = (
+    "You are a professional AI assistant specializing in finance. "
+    "Think step by step using the Reason and Act (ReAct) pattern and reply **in Markdown only**.\n\n"
+    "Use exactly this template:\n"
+    "### Question\n"
+    "<restate the question>\n\n"
+    "### Reasoning\n"
+    "1. **Thought:** …  \n"
+    "   **Act:** …  \n"
+    "   **Observe:** …  \n"
+    "   **Answer:** …\n"
+    "2. *(repeat Thought/Act/Observe/Answer as many steps as needed)*\n\n"
+    "### Final answer\n"
+    "<concise answer>"
+)
     resp = openai.chat.completions.create(
         model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
+        messages=[{"role": "system", "content": system},
+                  {"role": "user",   "content": query}],
         temperature=0.7,
         max_tokens=1024,
     )
+    return resp.choices[0].message.content.strip()        # markdown string
 
-    raw = resp.choices[0].message.content.strip()
-    print("Raw response:", raw)
-    m = re.search(r"\{[\s\S]*\}", raw)
+# Convert markdown to JSON
+def _markdown_to_json(md_text: str, fixer_model="gpt-3.5-turbo") -> dict:
+    resp = openai.chat.completions.create(
+        model=fixer_model,
+        messages=[
+            {"role": "system",
+             "content": ("Convert the following Reason and Act (ReAct) markdown response into a valid JSON "
+                         "object with keys: question, reasoning_steps, final_answer. "
+                         "Do NOT change the content; return only JSON.")},
+            {"role": "user", "content": md_text},
+        ],
+        temperature=0.0,
+        max_tokens=1024,
+        response_format={"type": "json_object"},
+    )
+    return json.loads(resp.choices[0].message.content)
+
+
+# Generate answer from GPT model using JSON format
+def generate_answer_from_gpt(query: str, retrieved_docs=None, model="gpt-4o-mini"):
+    """
+    • retrieved_docs is ignored here (but kept for interface parity).
+    • Returns a dict (JSON) if conversion succeeds, otherwise the raw markdown string.
+    """
+    markdown = _gpt_markdown_answer(query, model=model)
+
+    # try fast regex-based extraction first  (cheap)
+    m = re.search(r"\{[\s\S]*\}", markdown)
+    print("Regex match:", m)
     if m:
         try:
-            return json.loads(m.group(0))
+            return json.loads(m.group(0))          # success → dict
         except json.JSONDecodeError:
-            pass
-    return {"error": "Invalid JSON generated", "final_answer": raw}
+            pass                                   # fall through to fixer
 
+    # fallback: fixer second-call (cheap)
+    try:
+        return _markdown_to_json(markdown)
+    except Exception:
+        return markdown   
+
+# Generate answer from Mistral model using JSON format
 def generate_answer_from_mistral(query, top_k_docs, max_new_tokens=8192):
 
     prompt = f"""You are a professional AI assistant specializing in finance. Use the following retrieved context to answer the user's question.

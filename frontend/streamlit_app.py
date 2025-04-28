@@ -48,7 +48,7 @@ if st.button("Get Answer") and question:
                     if "reasoning_steps" in answer_data and isinstance(answer_data["reasoning_steps"], list):
                         st.markdown("### 🧠 Reasoning Steps")
                         for step in answer_data["reasoning_steps"]:
-                            with st.expander(f"**Thought:** {step.get('question', 'Step')}"):
+                            with st.expander(f"**Thought:** {step.get('question') or step.get('Thought') or step.get('thought') or 'Step'}"):
                                 st.markdown(f"**Act:** {step.get('act')}")
                                 st.markdown(f"**Observe:** {step.get('observe')}")
                                 st.markdown(f"**Answer:** {step.get('answer')}")
