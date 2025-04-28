@@ -1,0 +1,11 @@
+# requirements.txt
+fastapi
+uvicorn
+sqlalchemy
+pandas
+numpy
+sentence-transformers
+scikit-learn
+pymysql
+requests
+python-dotenv
