@@ -37,26 +37,30 @@ def process_query(req: QueryRequest):
 
 @app.post("/query_gpt")
 def process_query_gpt(req: QueryRequest):
-    top_docs  = search_similar_texts(req.query, top_k=req.top_k)
+    # top_docs  = search_similar_texts(req.query, top_k=req.top_k)
     # we pass doc list for future use but generate_answer_from_gpt ignores it for now
-    answer    = generate_answer_from_gpt(req.query, [d["document"] for d in top_docs])
+    # answer    = generate_answer_from_gpt(req.query, [d["document"] for d in top_docs])
+    answer    = generate_answer_from_gpt(req.query, None)
 
     return {
         "question": req.query,
-        "retrieved_documents": top_docs,
+        # "retrieved_documents": top_docs,
         "answer": answer,                 # could be dict *or* markdown str
         "model_used": "gpt",
     }
 
 @app.post("/query_gemini")              # NEW
 def process_query_gemini(req: QueryRequest):
-    top_docs = search_similar_texts(req.query, top_k=req.top_k)
+    # top_docs = search_similar_texts(req.query, top_k=req.top_k)
+    # answer   = generate_answer_from_gemini(
+    #     req.query, [d["document"] for d in top_docs]
+    # )
     answer   = generate_answer_from_gemini(
-        req.query, [d["document"] for d in top_docs]
+        req.query, None
     )
     return {
         "question": req.query,
-        "retrieved_documents": top_docs,
+        # "retrieved_documents": top_docs,
         "answer": answer,
         "model_used": "gemini",
     }
