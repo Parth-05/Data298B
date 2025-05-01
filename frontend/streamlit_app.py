@@ -1,20 +1,25 @@
 import streamlit as st, requests, json
 import requests
+import os
+from dotenv import load_dotenv
 
 st.set_page_config(page_title="Financial Q&A", layout="wide")
 st.title(" Financial Q&A Assistant")
 st.markdown("Ask financial questions and get reasoning-powered answers.")
 
 # Model selector (Mistral is active, LLaMA 3 is dummy)
-model_choice = st.selectbox("Choose a model", ["Mistral", "LLaMA 3", "GPT", "Gemini"])
+model_choice = st.selectbox("Choose a model", ["Mistral", "LLaMA 3", "GPT", "Gemini", "Qwen"])
 
-# API_URL = "http://localhost:8000/query"
+# Load environment variables
+load_dotenv()
 
 # map model → endpoint
 ENDPOINTS = {
-    "Mistral": "http://localhost:8000/query",
-    "GPT":  "http://localhost:8000/query_gpt",
-    "Gemini":  "http://localhost:8000/query_gemini"
+    "Mistral": os.getenv("MISTRAL_URL"),
+    "LLaMA 3": os.getenv("LLAMA_URL"),
+    "GPT":  os.getenv("GPT_URL"),
+    "Gemini":  os.getenv("GEMINI_URL"),
+    "Qwen": os.getenv("QWEN_URL"),
 }
 
 question = st.text_area(" Enter your financial or business question", height=150)
@@ -61,7 +66,7 @@ if st.button("Get Answer") and question:
 
             else:
                 # Fallback for plain string or invalid JSON
-                st.warning(" Unstructured Answer:")
+                # st.warning(" Unstructured Answer:")
                 st.write(answer_data)
 
         else:
